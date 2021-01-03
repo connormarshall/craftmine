@@ -42,11 +42,17 @@
       function Block(x, y, z) {
 
         //Settings for block rendering
-        var linesEnabled = false;
+
+        /* WARNING: disabling linesEnabled will break chunk Loading
+         * in current version
+         */
+        var linesEnabled = true;
 
         this.x = x;
         this.y = y;
         this.z = z;
+        this.mesh;
+        this.line;
 
         //Function defining what to do when a Block object is displayed
         this.display = function() {
@@ -64,35 +70,55 @@
           //var blockMeshMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
 
           //Create a mesh out of the box buffer geometry, with the mesh material
-          var block = new THREE.Mesh(blockBox, blockMeshMat);
+          this.mesh = new THREE.Mesh(blockBox, blockMeshMat);
           //Add the block to the scene
-          scene.add(block);
+          scene.add(this.mesh);
           //Position the block in the scene
-          block.position.x = this.x;
-          block.position.y = this.y - 10;
-          block.position.z = this.z;
+          this.mesh.position.x = this.x;
+          this.mesh.position.y = this.y - 10;
+          this.mesh.position.z = this.z;
 
           if(linesEnabled) {
             //Edges of the block
             var edges = new THREE.EdgesGeometry(blockBox);
             //Line segments according to the edges of the block
-            var line = new THREE.LineSegments(edges, new THREE
+            this.line = new THREE.LineSegments(edges, new THREE
               .LineBasicMaterial({color: 0x000000})
             );
             //Add the lines to the scene and position them according to the block
-            scene.add(line);
-            line.position.x = this.x;
-            line.position.y = this.y - 10;
-            line.position.z = this.z;
+            scene.add(this.line);
+            this.line.position.x = this.x;
+            this.line.position.y = this.y - 10;
+            this.line.position.z = this.z;
           }
 
         }
       }
 
+      function getChunkEdges () {
+        var xPosArray = [];
+        var zPosArray = [];
+
+        for(var i = 0; i < chunks.length; i++) {
+          for(var j = 0; j < chunks[i].length; j++) {
+            xPosArray.push(chunks[i][j].x);
+            zPosArray.push(chunks[i][j].z);
+          }
+        }
+
+        return [
+                  Math.min.apply(null, xPosArray),
+                  Math.max.apply(null, xPosArray),
+                  Math.min.apply(null, zPosArray),
+                  Math.max.apply(null, zPosArray)
+               ];
+
+      }
+
       //Array containing chunks
       var chunks = [];
       //Size of an individual chunk
-      var chunkSize = 10;
+      var chunkSize = 16;
       //RenderDistance: number of chunks to render at a time
       var renderDistance = 3;
       //The offsetting of the block positions as per the noise function
@@ -296,6 +322,81 @@
             }
           }
         }
+
+        //Chunk Loading
+        var chunkEdges = getChunkEdges();
+        var lowestX = chunkEdges[0];
+        var highestX = chunkEdges[1];
+        var lowestZ = chunkEdges[2];
+        var highestZ = chunkEdges[3];
+
+        if(camera.position.z <= lowestZ + (chunkSize * 5)) { //Middle of chunks
+				/*
+
+					[0], [3], [6],
+					[1], [x], [7],
+					[2], [5], [8],
+				*/
+
+				// remove blocks (chunks)
+
+        //Loop over chunks
+				for(var i = 0; i < chunks.length; i++) {
+          //If chunk row (i+1) is outside of render distance
+					if((i + 1) % renderDistance == 0) {
+            //Loop over each chunk in i and remove each block
+						for(var j = 0; j < chunks[i].length; j++) {
+							scene.remove(chunks[i][j].mesh);
+							scene.remove(chunks[i][j].line);
+						}
+					}
+
+				}
+
+        //Add every other chunk to an array newChunks[]
+				var newChunks = [];
+				for(var i = 0; i < chunks.length; i++) {
+					if((i + 1) % renderDistance != 0) {
+						newChunks.push(chunks[i]);
+					}
+				}
+
+				// add blocks
+        //Create a row of chunks the length of renderDistance
+				for(var i = 0; i < renderDistance; i++) {
+					var chunk = [];
+          /* Create the row with the coords after the current end of rendered
+           * chunks. (i * chunkSize * 5) = x coordinate of the first block
+           * of each chunk.
+           */
+					for(var x = lowestX + (i * chunkSize * 5);
+            x < lowestX + (i * chunkSize * 5) + (chunkSize * 5); x += 5) {
+            /* Loop over the z axis and perlin noise create a block for each
+             * block position in the chunk
+             */
+						for(var z = lowestZ - (chunkSize * 5); z < lowestZ; z += 5){
+							xoff = inc * x / 5;
+							zoff = inc * z / 5;
+							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+							chunk.push(new Block(x, v, z));
+						}
+					}
+          //Add the new chunks at the start of the newChunks array
+					newChunks.splice(i * renderDistance, 0, chunk);
+				}
+
+        //Replace chunks with newChunks
+				chunks = newChunks;
+
+        //Display every new chunk
+				for(var i = 0; i < chunks.length; i++) {
+					if(i % renderDistance == 0) {
+						for(var j = 0; j < chunks[i].length; j++) {
+							chunks[i][j].display();
+						}
+					}
+				}
+			}
 
         forward = 1;
         back = -1;
