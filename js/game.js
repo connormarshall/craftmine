@@ -20,11 +20,28 @@
         1000                                     //Far clipping plane
       );
 
+      //Texture Loader
+      var loader = new THREE.TextureLoader();
+
+      //material for a grass block. Load once to save overhead
+      var blockMeshMat = [
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-top.png")}),
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/dirt.jpg")}),
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")})
+      ];
+
       /*
        * Defines a block object and how it should be rendered
        * x, y, z : 3D position
        */
       function Block(x, y, z) {
+
+        //Settings for block rendering
+        var linesEnabled = false;
+
         this.x = x;
         this.y = y;
         this.z = z;
@@ -40,7 +57,10 @@
           //Create a buffer object of box geometry, a cube with the dimension 5
           var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); //width, height, depth
           //Create a mesh material object with a hex colour
-          var blockMeshMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
+
+          //Solid green material
+          //var blockMeshMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
+
           //Create a mesh out of the box buffer geometry, with the mesh material
           var block = new THREE.Mesh(blockBox, blockMeshMat);
           //Add the block to the scene
@@ -50,17 +70,19 @@
           block.position.y = this.y - 10;
           block.position.z = this.z;
 
-          //Edges of the block
-          var edges = new THREE.EdgesGeometry(blockBox);
-          //Line segments according to the edges of the block
-          var line = new THREE.LineSegments(edges, new THREE
-            .LineBasicMaterial({color: 0xffffff})
-          );
-          //Add the lines to the scene and position them according to the block
-          scene.add(line);
-          line.position.x = this.x;
-          line.position.y = this.y - 10;
-          line.position.z = this.z;
+          if(linesEnabled) {
+            //Edges of the block
+            var edges = new THREE.EdgesGeometry(blockBox);
+            //Line segments according to the edges of the block
+            var line = new THREE.LineSegments(edges, new THREE
+              .LineBasicMaterial({color: 0x000000})
+            );
+            //Add the lines to the scene and position them according to the block
+            scene.add(line);
+            line.position.x = this.x;
+            line.position.y = this.y - 10;
+            line.position.z = this.z;
+          }
 
         }
       }
@@ -110,6 +132,7 @@
         keyHandle(code, true);
 
         if (keys[32] && canJump) {
+          e.preventDefault();
           ySpeed = -1.3;
           canJump = false;
         }
@@ -197,11 +220,24 @@
         }
       }
 
+
+    //Toggle for auto jump button
+		function toggleAutoJump() {
+			if(autoJumpEnabled){
+				autoJumpEnabled = false;
+				document.getElementById("autojump-btn").innerHTML = "<h2>Auto Jump: Off</h2>";
+			} else {
+				autoJumpEnabled = true;
+				document.getElementById("autojump-btn").innerHTML = "<h2>Auto Jump: On</h2>";
+			}
+
+		}
+
       var movementSpeed = 0.7;
       var ySpeed = 0;
       var acc = 0.06;
       var jumping = false;
-      var autoJumpEnabled = false;
+      var autoJumpEnabled = true;
       var forward = 1;
       var back = -1;
 

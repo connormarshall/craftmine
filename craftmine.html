@@ -5,10 +5,20 @@
     <title>Craftmine</title>
     <style type="text/css">
       body { margin: 0px; }
+
+      #autojump-btn {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+      }
+
     </style>
   </head>
 
   <body>
+
+    <button id="autojump-btn" onclick="toggleAutoJump()"><h2>AutoJump : On</h2></button>
+
     <!-- Libraries -->
     <script src="js/lib/three.js" charset="utf-8"></script>
     <script src="js/lib/perlin.js" charset="utf-8"></script>
