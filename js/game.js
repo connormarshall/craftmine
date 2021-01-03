@@ -132,42 +132,106 @@
       document.addEventListener("unlock", () => {});
 
 
+      function updateMovement() {
+        //W key
+        if(keys[87]) {
+          controls.moveForward(forward * movementSpeed);
+          movementCollision();
+        }
+        //A key
+        if(keys[65]) {
+          controls.moveRight(back * movementSpeed);
+          movementCollision();
+        }
+        //S key
+        if(keys[83]) {
+          controls.moveForward(back * movementSpeed);
+          movementCollision();
+        }
+        //D key
+        if(keys[68]) {
+          controls.moveRight(forward * movementSpeed);
+          movementCollision();
+        }
+
+      }
+
+      function movementCollision() {
+        for(var i = 0; i < blocks.length; i++) {
+
+          if(camera.position.x <= blocks[i].x + 2.5 &&
+             camera.position.x >= blocks[i].x - 2.5 &&
+             camera.position.z <= blocks[i].z + 2.5 &&
+             camera.position.z >= blocks[i].z - 2.5) {
+
+            if(camera.position.y == blocks[i].y - 2.5 &&
+               !autoJumpEnabled) {
+              console.log("colliding! cameraY: " + camera.position.y + "\n"
+                          + " blockPos: x: " + blocks[i].x + "\n"
+                          + " blockPos: y: " + blocks[i].y + "\n"
+                          + " blockPos: z: " + blocks[i].z + "\n");
+              forward = -1;
+              back = 1;
+
+              //W key
+              if(keys[87]) {
+                controls.moveForward(forward * movementSpeed);
+              }
+              //A key
+              if(keys[65]) {
+                controls.moveRight(back * movementSpeed);
+              }
+              //S key
+              if(keys[83]) {
+                controls.moveForward(back * movementSpeed);
+              }
+              //D key
+              if(keys[68]) {
+                controls.moveRight(forward * movementSpeed);
+              }
+
+
+            }
+
+          }
+        }
+      }
+
       var movementSpeed = 0.7;
       var ySpeed = 0;
       var acc = 0.06;
       var jumping = false;
+      var autoJumpEnabled = false;
+      var forward = 1;
+      var back = -1;
+
       //Update function: Update game each frams
       function update() {
 
-        if(keys[87])
-          controls.moveForward(movementSpeed);
-
-        if (keys[83])
-          controls.moveForward(-1 * movementSpeed);
-
-        if(keys[65])
-          controls.moveRight(-1 * movementSpeed);
-
-        if (keys[68])
-          controls.moveRight(movementSpeed);
+        updateMovement();
 
         camera.position.y -= ySpeed;
         ySpeed += acc;
 
         for(var i = 0; i < blocks.length; i++) {
-          if(camera.position.x <= blocks[i].x + 5 &&
-             camera.position.x >= blocks[i].x &&
-             camera.position.z <= blocks[i].z + 5 &&
-             camera.position.z >= blocks[i].z) {
+          if(camera.position.x <= blocks[i].x + 2.5 &&
+             camera.position.x >= blocks[i].x - 2.5 &&
+             camera.position.z <= blocks[i].z + 2.5 &&
+             camera.position.z >= blocks[i].z - 2.5) {
 
-            if(camera.position.y < blocks[i].y) {
-              camera.position.y = blocks[i].y;
+            if(camera.position.y <= blocks[i].y + 2.5 &&
+               camera.position.y >= blocks[i].y - 2.5) {
+
+              camera.position.y = blocks[i].y + 2.5;
               ySpeed = 0;
               canJump = true;
             }
 
           }
         }
+
+        forward = 1;
+        back = -1;
 
       }
 
