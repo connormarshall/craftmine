@@ -5,6 +5,8 @@
 
       //Three.js scene object
       var scene = new THREE.Scene();
+      //Skybox colour
+      scene.background = new THREE.Color(0x89cff0);
       //Three.js renderer object
       var renderer = new THREE.WebGLRenderer();
       //Size of the rendered area
@@ -50,7 +52,7 @@
         this.display = function() {
           /* NOTE: BufferGeometry stores geometry as raw data in an array rather
            * than as instances of Vector and Face classes. This makes them more
-           * efficient but more difficult to manipulate. This is good for blocks,
+           * efficient but more difficult to manipulate. This is good for chunks,
            * as we need to render a lot of them and won't manipulate their geometry.
            */
 
@@ -87,42 +89,68 @@
         }
       }
 
-      //Array containing blocks
-      var blocks = [];
-
+      //Array containing chunks
+      var chunks = [];
+      //Size of an individual chunk
+      var chunkSize = 10;
+      //RenderDistance: number of chunks to render at a time
+      var renderDistance = 3;
       //The offsetting of the block positions as per the noise function
       var xOff = 0;
       var zOff = 0;
 
       var inc = 0.05; //Smoothness
-      var amplitude = 50; //height (variation)
+      var amplitude = 30 + (Math.random() * 70); //height (variation)
 
-      //Looping over x and z axis to create a flat 20x20 plane of blocks
-      for(var x = 0; x < 20; x++) {
-        //Reset x to 0 each time for a new row of blocks, so the value does not accumulate
-        xOff = 0;
-        for(var z = 0; z < 20; z++) {
-          /* Get a whole number Math.round()
-           * of the output of a noise function noise.perlin2()
-           * with the parameters x offset and z offset
-           * multiplied by amplitude, divided by 5 to get a height displacement
-           * multiply it by 5 to bring it into the space of blocks
-           */
-          var v = Math.round(noise.perlin2(xOff, zOff) * amplitude / 5) * 5;
-          //Add a block to the array, with the noise displaced height v.
-          blocks.push(new Block(x * 5, v, z * 5));
-          //Increment the x offset
-          xOff += inc;
+      //Looping over rendered chunks
+      for(var i = 0; i < renderDistance; i++) {
+        //Looping over rendered chunks on the other axis
+        for(var j = 0; j < renderDistance; j++) {
+          //Empty array of chunks for new chunk
+          var chunk = [];
+          //Looping over x and z axis to create a flat 20x20 plane of chunks.
+          //Multiply by chunksize to transform into the space of the chunk
+          for(var x = i * chunkSize; x < (i * chunkSize) + chunkSize; x++) {
+            //Reset x to 0 each time for a new row of chunks, so the value does not accumulate
+            //xOff = 0;
+            for(var z = j * chunkSize; z < (j * chunkSize) + chunkSize; z++) {
+              //Increment the offset values
+              xOff = inc * x;
+              zOff = inc * z;
+              /* Get a whole number Math.round()
+               * of the output of a noise function noise.perlin2()
+               * with the parameters x offset and z offset
+               * multiplied by amplitude, divided by 5 to get a height displacement
+               * multiply it by 5 to bring it into the space of chunks
+               */
+              var v = Math.round(noise.perlin2(xOff, zOff) * amplitude / 5) * 5;
+              //Add a block to the array, with the noise displaced height v.
+              chunk.push(new Block(x * 5, v, z * 5));
 
-        }
-        //Increment the z offset
-        zOff += inc;
-
+              /*
+              console.log("New Block: \n"
+                          + "chunk: " + (i+1) + " : " + (j + 1) + "\n"
+                          + " block: " + (x*5) + " , " + v + " , " + (z*5)
+                          + "\n");
+              */
+            }
+          }
+          chunks.push(chunk);
+          //console.log("chunk " + (i + 1) + " : " + (j + 1) + " pushed");
       }
+    }
 
-      //Display each block
-      for(var i = 0; i < blocks.length; i++) {
-        blocks[i].display();
+      //Spawn position
+      camera.position.x = Math.round(renderDistance * chunkSize / 2 * 5);
+      camera.position.z = Math.round(renderDistance * chunkSize / 2 * 5);
+      camera.position.y = 70;
+
+      //Display each block in the rendered chunks
+      for(var i = 0; i < chunks.length; i++) {
+        for(var j = 0; j < chunks[i].length; j++) {
+          console.log();
+          chunks[i][j].display();
+        }
       }
 
 
@@ -180,46 +208,47 @@
       }
 
       function movementCollision() {
-        for(var i = 0; i < blocks.length; i++) {
+        for(var i = 0; i < chunks.length; i++) {
+          for(var j = 0; j < chunks[i].length; j++) {
+            if(camera.position.x <= chunks[i][j].x + 2.5 &&
+               camera.position.x >= chunks[i][j].x - 2.5 &&
+               camera.position.z <= chunks[i][j].z + 2.5 &&
+               camera.position.z >= chunks[i][j].z - 2.5) {
 
-          if(camera.position.x <= blocks[i].x + 2.5 &&
-             camera.position.x >= blocks[i].x - 2.5 &&
-             camera.position.z <= blocks[i].z + 2.5 &&
-             camera.position.z >= blocks[i].z - 2.5) {
+              if(camera.position.y == chunks[i][j].y - 2.5 &&
+                 !autoJumpEnabled) {
+                console.log("colliding! cameraY: " + camera.position.y + "\n"
+                            + " blockPos: x: " + chunks[i][j].x + "\n"
+                            + " blockPos: y: " + chunks[i][j].y + "\n"
+                            + " blockPos: z: " + chunks[i][j].z + "\n");
+                forward = -1;
+                back = 1;
 
-            if(camera.position.y == blocks[i].y - 2.5 &&
-               !autoJumpEnabled) {
-              console.log("colliding! cameraY: " + camera.position.y + "\n"
-                          + " blockPos: x: " + blocks[i].x + "\n"
-                          + " blockPos: y: " + blocks[i].y + "\n"
-                          + " blockPos: z: " + blocks[i].z + "\n");
-              forward = -1;
-              back = 1;
+                //W key
+                if(keys[87]) {
+                  controls.moveForward(forward * movementSpeed);
+                }
+                //A key
+                if(keys[65]) {
+                  controls.moveRight(back * movementSpeed);
+                }
+                //S key
+                if(keys[83]) {
+                  controls.moveForward(back * movementSpeed);
+                }
+                //D key
+                if(keys[68]) {
+                  controls.moveRight(forward * movementSpeed);
+                }
 
-              //W key
-              if(keys[87]) {
-                controls.moveForward(forward * movementSpeed);
-              }
-              //A key
-              if(keys[65]) {
-                controls.moveRight(back * movementSpeed);
-              }
-              //S key
-              if(keys[83]) {
-                controls.moveForward(back * movementSpeed);
-              }
-              //D key
-              if(keys[68]) {
-                controls.moveRight(forward * movementSpeed);
-              }
 
+              }
 
             }
 
           }
         }
       }
-
 
     //Toggle for auto jump button
 		function toggleAutoJump() {
@@ -249,20 +278,22 @@
         camera.position.y -= ySpeed;
         ySpeed += acc;
 
-        for(var i = 0; i < blocks.length; i++) {
-          if(camera.position.x <= blocks[i].x + 2.5 &&
-             camera.position.x >= blocks[i].x - 2.5 &&
-             camera.position.z <= blocks[i].z + 2.5 &&
-             camera.position.z >= blocks[i].z - 2.5) {
+        for(var i = 0; i < chunks.length; i++) {
+          for(var j = 0; j < chunks[i].length; j++) {
+            if(camera.position.x <= chunks[i][j].x + 2.5 &&
+               camera.position.x >= chunks[i][j].x - 2.5 &&
+               camera.position.z <= chunks[i][j].z + 2.5 &&
+               camera.position.z >= chunks[i][j].z - 2.5) {
 
-            if(camera.position.y <= blocks[i].y + 2.5 &&
-               camera.position.y >= blocks[i].y - 2.5) {
+              if(camera.position.y <= chunks[i][j].y + 2.5 &&
+                 camera.position.y >= chunks[i][j].y - 2.5) {
 
-              camera.position.y = blocks[i].y + 2.5;
-              ySpeed = 0;
-              canJump = true;
+                camera.position.y = chunks[i][j].y + 2.5;
+                ySpeed = 0;
+                canJump = true;
+              }
+
             }
-
           }
         }
 

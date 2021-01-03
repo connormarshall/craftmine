@@ -24,12 +24,10 @@ var mozMinusKey = keys[173];
 var mozPlusKey = keys[61];
 
 function keyIsDown(key) {
-  console.log("key: " + key + " isDown: " + keys[key.charCodeAt(0)]);
   return keys[key.charCodeAt(0)];
 }
 
 function keyHandle(code, isDown) {
-  console.log("key: " + code, "isDown: " + isDown);
   keys[code] = isDown;
 
   //Prevents zooming
