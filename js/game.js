@@ -8,7 +8,7 @@
       //Skybox colour
       scene.background = new THREE.Color(0x89cff0);
       //Three.js renderer object
-      var renderer = new THREE.WebGLRenderer();
+      var renderer = new THREE.WebGLRenderer({antialias: true});
       //Size of the rendered area
       renderer.setSize(window.innerWidth, window.innerHeight);
       //Add renderer to document
