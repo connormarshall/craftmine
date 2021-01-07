@@ -5,6 +5,16 @@
 
       //Three.js scene object
       var scene = new THREE.Scene();
+
+      //White exponential fog (LAGGY)
+      /*
+      {
+        const colour = 0xffffff;
+        const density = 0.01;
+        scene.fog = new THREE.FogExp2(colour, density);
+      }
+      */
+
       //Skybox colour
       scene.background = new THREE.Color(0x89cff0);
       //Three.js renderer object
@@ -95,10 +105,13 @@
         }
       }
 
+      //Returns an array of co-ordinates for the normals of the chunk array
       function getChunkEdges () {
+        //Arrays containing x and z co-ordinates for every block
         var xPosArray = [];
         var zPosArray = [];
 
+        //Push every block to the arrays
         for(var i = 0; i < chunks.length; i++) {
           for(var j = 0; j < chunks[i].length; j++) {
             xPosArray.push(chunks[i][j].x);
@@ -106,6 +119,7 @@
           }
         }
 
+        //Return the minimum and maximum values from the x and z arrays
         return [
                   Math.min.apply(null, xPosArray),
                   Math.max.apply(null, xPosArray),
@@ -180,11 +194,16 @@
       }
 
 
+      //Allows the player to jump if true
       var canJump = true;
+      //Keydown event - returns repeatedly as long as a key is down
       document.addEventListener("keydown", (e) => {
+        //Gets the ASCII code or Unicode of the event
         var code = event.which || event.keyCode;
+        //Sets the key in the keys array to be true (pressed)
         keyHandle(code, true);
 
+        //Allows the player to jump
         if (keys[32] && canJump) {
           e.preventDefault();
           ySpeed = -1.3;
@@ -193,6 +212,7 @@
 
       });
 
+      //Keyup event - returns once when a key is no longer down
       document.addEventListener("keyup", (e) => {
         var code = event.which || event.keyCode;
         keyHandle(code, false);
@@ -330,7 +350,11 @@
         var lowestZ = chunkEdges[2];
         var highestZ = chunkEdges[3];
 
-        if(camera.position.z <= lowestZ + (chunkSize * 5)) { //Middle of chunks
+        /*
+         * FORWARD (DECREASING Z)
+         */
+
+        if(camera.position.z <= lowestZ + 20) { //Middle of chunks
 				/*
 
 					[0], [3], [6],
@@ -342,7 +366,7 @@
 
         //Loop over chunks
 				for(var i = 0; i < chunks.length; i++) {
-          //If chunk row (i+1) is outside of render distance
+          //If chunk row (i+1) is outside of render distance (DELETES 2, 5, 8)
 					if((i + 1) % renderDistance == 0) {
             //Loop over each chunk in i and remove each block
 						for(var j = 0; j < chunks[i].length; j++) {
@@ -398,6 +422,210 @@
 				}
 			}
 
+
+
+
+      /*
+       * BACKWARD (INCREASING Z)
+       */
+
+      if(camera.position.z >= highestZ - 20) { //Middle of chunks
+      /*
+
+        [0], [3], [6],
+        [1], [x], [7],
+        [2], [5], [8],
+      */
+
+      // remove blocks (chunks)
+
+      //Loop over chunks
+      for(var i = 0; i < chunks.length; i++) {
+        //If chunk row i is outside of render distance (DELETES 0, 1, 2)
+        if( i % renderDistance == 0) {
+          //Loop over each chunk in i and remove each block
+          for(var j = 0; j < chunks[i].length; j++) {
+            scene.remove(chunks[i][j].mesh);
+            scene.remove(chunks[i][j].line);
+          }
+        }
+
+      }
+
+      //Add every other chunk to an array newChunks[]
+      var newChunks = [];
+      for(var i = 0; i < chunks.length; i++) {
+        if( i % renderDistance != 0) {
+          newChunks.push(chunks[i]);
+        }
+      }
+
+      // add blocks
+      //Create a row of chunks the length of renderDistance
+      for(var i = 0; i < renderDistance; i++) {
+        var chunk = [];
+        /* Create the row with the coords after the current end of rendered
+         * chunks. (i * chunkSize * 5) = x coordinate of the first block
+         * of each chunk.
+         */
+        for(var x = lowestX + (i * chunkSize * 5);
+          x < lowestX + (i * chunkSize * 5) + (chunkSize * 5); x += 5) {
+          /* Loop over the z axis and perlin noise create a block for each
+           * block position in the chunk
+           */
+          for(var z = highestZ + 5; z < (highestZ + 5) + (chunkSize * 5); z += 5){
+            xoff = inc * x / 5;
+            zoff = inc * z / 5;
+            var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+            chunk.push(new Block(x, v, z));
+          }
+        }
+        //Add the new chunks at the end of the newChunks array (2, 5, 8)
+        newChunks.splice( (i * renderDistance) + 2, 0, chunk);
+      }
+
+      //Replace chunks with newChunks
+      chunks = newChunks;
+
+      //Display every new chunk
+      for(var i = 0; i < chunks.length; i++) {
+        if( (i + 1) % renderDistance == 0) {
+          for(var j = 0; j < chunks[i].length; j++) {
+            chunks[i][j].display();
+          }
+        }
+      }
+    }
+
+    /*
+     * RIGHT (INCREASING X)
+     */
+
+    if(camera.position.x >= highestX - 20) { //Middle of chunks
+    /*
+
+      [0], [3], [6],
+      [1], [x], [7],
+      [2], [5], [8],
+    */
+
+    // remove blocks (chunks)
+
+    //Loop over chunks (0, 1, 2)
+    for(var i = 0; i < renderDistance; i++) {
+      //Loop over each chunk in i and remove each block
+      for(var j = 0; j < chunks[i].length; j++) {
+        scene.remove(chunks[i][j].mesh);
+        scene.remove(chunks[i][j].line);
+      }
+
+    }
+
+    //Add every other chunk to an array newChunks[]
+    var newChunks = [];
+    for(var i = renderDistance; i < chunks.length; i++) {
+      newChunks.push(chunks[i]);
+    }
+
+    //Add blocks
+    //Create a row of chunks the length of renderDistance
+    for(var i = 0; i < renderDistance; i++) {
+      var chunk = [];
+      /* Create the row with the coords after the current end of rendered
+       * chunks. (i * chunkSize * 5) = z coordinate of the first block
+       * of each chunk.
+       */
+      for(var z = lowestZ + (i * chunkSize * 5);
+          z < lowestZ + (i * chunkSize * 5) + (chunkSize * 5); z += 5 ) {
+        /* Loop over the x axis and perlin noise create a block for each
+         * block position in the chunk
+         */
+        for(var x = highestX + 5; x < highestX + 5 + (chunkSize * 5); x += 5 ) {
+          xoff = inc * x / 5;
+          zoff = inc * z / 5;
+          var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+          chunk.push(new Block(x, v, z));
+        }
+      }
+      //Add the new chunks at the end of the newChunks array (6, 7, 8)
+      newChunks.splice( chunks.length - (renderDistance - i), 0, chunk);
+    }
+
+    //Replace chunks with newChunks
+    chunks = newChunks;
+
+    //Display every new chunk
+    for(var i = chunks.length - renderDistance; i < chunks.length; i++) {
+      for(var j = 0; j < chunks[i].length; j++) {
+        chunks[i][j].display();
+      }
+    }
+  }
+
+  /*
+   * LEFT (DECREASING X)
+   */
+
+  if(camera.position.x <= lowestX + 20) { //Middle of chunks
+  /*
+
+    [0], [3], [6],
+    [1], [x], [7],
+    [2], [5], [8],
+  */
+
+  // remove blocks (chunks)
+
+  //Loop over chunks (0, 1, 2)
+  for(var i = chunks.length - renderDistance; i < chunks.length; i++) {
+    //Loop over each chunk in i and remove each block
+    for(var j = 0; j < chunks[i].length; j++) {
+      scene.remove(chunks[i][j].mesh);
+      scene.remove(chunks[i][j].line);
+    }
+
+  }
+
+  //Add every other chunk to an array newChunks[]
+  var newChunks = [];
+  for(var i = 0; i < chunks.length - renderDistance; i++) {
+    newChunks.push(chunks[i]);
+  }
+
+  //Add blocks
+  //Create a row of chunks the length of renderDistance
+  for(var i = 0; i < renderDistance; i++) {
+    var chunk = [];
+    /* Create the row with the coords after the current end of rendered
+     * chunks. (i * chunkSize * 5) = z coordinate of the first block
+     * of each chunk.
+     */
+    for(var z = lowestZ + (i * chunkSize * 5);
+        z < lowestZ + (i * chunkSize * 5) + (chunkSize * 5); z += 5 ) {
+      /* Loop over the x axis and perlin noise create a block for each
+       * block position in the chunk
+       */
+      for(var x = lowestX - (chunkSize * 5); x < lowestX; x += 5 ) {
+        xoff = inc * x / 5;
+        zoff = inc * z / 5;
+        var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+        chunk.push(new Block(x, v, z));
+      }
+    }
+    //Add the new chunks at the end of the newChunks array (6, 7, 8)
+    newChunks.splice( i, 0, chunk);
+  }
+
+  //Replace chunks with newChunks
+  chunks = newChunks;
+
+  //Display every new chunk
+  for(var i = 0; i < renderDistance; i++) {
+    for(var j = 0; j < chunks[i].length; j++) {
+      chunks[i][j].display();
+    }
+  }
+}
         forward = 1;
         back = -1;
 
