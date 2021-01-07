@@ -7,25 +7,39 @@
       body { margin: 0px; }
 
       #autojump-btn {
-
+        font-size: 0.7em;
+        color: rgb(13, 250, 254);
+        background-color: rgb(13, 43, 74);
+        border: 4px solid rgb(13, 20, 54);
+        width: 150px;
+        padding: 5px;
         cursor: pointer;
+        outline: 0;
 
         position: absolute;
-        left: 20px;
-        top: 20px;
+        right: 0;
+        top: 0;
       }
+
+      /*
+      #autojump-btn:focus {
+        border: 4px solid rgb(13, 43, 74);
+        background-color: rgb(13, 20, 54);
+      }
+      */
 
     </style>
   </head>
 
   <body>
 
-    <button id="autojump-btn" onclick="toggleAutoJump()"><h2>Auto Jump : On</h2></button>
+    <button id="autojump-btn" onclick="toggleAutoJump()">AUTO JUMP: ON</button>
 
     <!-- Libraries -->
     <script src="js/lib/three.js" charset="utf-8"></script>
     <script src="js/lib/perlin.js" charset="utf-8"></script>
     <script src="js/lib/PointerLockControls.js" charset="utf-8"></script>
+    <script src="js/lib/stats.min.js" charset="utf-8"></script>
 
     <!-- Javascript -->
     <script src="js/keyhandler.js" charset="utf-8"></script>

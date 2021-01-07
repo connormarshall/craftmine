@@ -7,13 +7,12 @@
       var scene = new THREE.Scene();
 
       //White exponential fog (LAGGY)
-      /*
+
       {
         const colour = 0xffffff;
         const density = 0.01;
         scene.fog = new THREE.FogExp2(colour, density);
       }
-      */
 
       //Skybox colour
       scene.background = new THREE.Color(0x89cff0);
@@ -23,6 +22,24 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       //Add renderer to document
       document.body.appendChild(renderer.domElement);
+
+      //FPS Counter
+      var stats = new Stats();
+      stats.showPanel(0);
+      stats.dom.id = "fps-counter";
+      document.body.appendChild(stats.dom);
+      //Animates the FPS counter to the screen
+      function animateFPS() {
+        stats.begin();
+
+        //Monitor code goes here
+
+        stats.end();
+        requestAnimationFrame(animateFPS);
+
+      }
+      //Initial FPS animation call
+      requestAnimationFrame(animateFPS);
 
       // Camera object
       var camera = new THREE.PerspectiveCamera(
@@ -35,7 +52,7 @@
       //Texture Loader
       var loader = new THREE.TextureLoader();
 
-      //material for a grass block. Load once to save overhead
+      //Material for a grass block. Load once to save overhead
       var blockMeshMat = [
         new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
         new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
@@ -43,6 +60,28 @@
         new THREE.MeshBasicMaterial({map: loader.load("img/texture/dirt.jpg")}),
         new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
         new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")})
+      ];
+
+      //Used to find the faces of a block
+      var faces = [
+        {// left
+          dir: [-5, 0, 0, "left"]
+        },
+        {// right
+          dir: [5, 0, 0, "right"]
+        },
+        {// top
+          dir: [0, 5, 0, "top"]
+        },
+        {// bottom
+          dir: [0, -5, 0, "bottom"]
+        },
+        {// front
+          dir: [0, 0, 5, "fromt"]
+        },
+        {// back
+          dir: [0, 0, -5, "back"]
+        }
       ];
 
       /*
@@ -64,8 +103,70 @@
         this.mesh;
         this.line;
 
+        //Checks if there is a block in the given x/y/z co-ord
+        this.getVoxel = function (x, y, z) {
+          //Loop over every block
+          for(var i = 0; i < chunks.length; i++) {
+            for(var j = 0; j < chunks[i].length; i++) {
+              //If the co-ords match
+              if(chunks[i][j].x == x &&
+                 chunks[i][j].y == y &&
+                 chunks[i][j].z == z) {
+                   //Return true
+                   return true;
+
+              }
+              //Else false
+              return false;
+            }
+          }
+        }
+
+        //Array to contain directions of covering blocks
+        this.directions = [];
+        //Function for filling the directions array
+        this.adjustFaces =  function() {
+          //For each face of the block
+          for(const {dir} of faces) {
+            //Check if there is a block covering that face
+            const neighbour = this.getVoxel(
+              this.x + dir[0],
+              this.y + dir[1],
+              this.z + dir[2],
+            );
+
+            //If there is a block covering that face
+            if(neighbour) {
+              //Add the direction of the face to the directions array
+              switch(dir[3]) {
+                case "right":
+                  this.directions.push("right");
+                  break;
+                case "left":
+                  this.directions.push("left");
+                  break;
+                case "top":
+                  this.directions.push("top");
+                  break;
+                case "bottom":
+                  this.directions.push("bottm");
+                  break;
+                case "front":
+                  this.directions.push("front");
+                  break;
+                case "back":
+                  this.directions.push("back");
+                  break;
+              }
+            }
+          }
+        }
+
         //Function defining what to do when a Block object is displayed
         this.display = function() {
+          //Checks what faces are covered by other blocks
+          this.adjustFaces();
+
           /* NOTE: BufferGeometry stores geometry as raw data in an array rather
            * than as instances of Vector and Face classes. This makes them more
            * efficient but more difficult to manipulate. This is good for chunks,
@@ -79,8 +180,17 @@
           //Solid green material
           //var blockMeshMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
 
-          //Create a mesh out of the box buffer geometry, with the mesh material
-          this.mesh = new THREE.Mesh(blockBox, blockMeshMat);
+          /* Create a mesh out of the box buffer geometry, with the mesh material
+           * If the face is covered (in directions), make it null (don't render it)
+           */
+          this.mesh = new THREE.Mesh(blockBox, [
+            (this.directions.includes("right") ? null : blockMeshMat[0]),  // right
+            (this.directions.includes("left") ? null : blockMeshMat[1]),   // left
+            (this.directions.includes("top") ? null : blockMeshMat[2]),    // top
+            (this.directions.includes("bottom") ? null : blockMeshMat[3]), // bottom
+            (this.directions.includes("front") ? null : blockMeshMat[4]),  // front
+            (this.directions.includes("back") ? null : blockMeshMat[5]),   // back
+          ]);
           //Add the block to the scene
           scene.add(this.mesh);
           //Position the block in the scene
@@ -134,7 +244,7 @@
       //Size of an individual chunk
       var chunkSize = 16;
       //RenderDistance: number of chunks to render at a time
-      var renderDistance = 3;
+      var renderDistance = 2;
       //The offsetting of the block positions as per the noise function
       var xOff = 0;
       var zOff = 0;
@@ -188,7 +298,6 @@
       //Display each block in the rendered chunks
       for(var i = 0; i < chunks.length; i++) {
         for(var j = 0; j < chunks[i].length; j++) {
-          console.log();
           chunks[i][j].display();
         }
       }
@@ -300,10 +409,10 @@
 		function toggleAutoJump() {
 			if(autoJumpEnabled){
 				autoJumpEnabled = false;
-				document.getElementById("autojump-btn").innerHTML = "<h2>Auto Jump: Off</h2>";
+				document.getElementById("autojump-btn").innerHTML = "AUTO JUMP: OFF";
 			} else {
 				autoJumpEnabled = true;
-				document.getElementById("autojump-btn").innerHTML = "<h2>Auto Jump: On</h2>";
+				document.getElementById("autojump-btn").innerHTML = "AUTO JUMP: ON";
 			}
 
 		}
