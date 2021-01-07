@@ -10,7 +10,7 @@
 
       {
         const colour = 0xffffff;
-        const density = 0.01;
+        const density = 0.001;
         scene.fog = new THREE.FogExp2(colour, density);
       }
 
@@ -162,57 +162,8 @@
           }
         }
 
-        //Function defining what to do when a Block object is displayed
-        this.display = function() {
-          //Checks what faces are covered by other blocks
-          this.adjustFaces();
 
-          /* NOTE: BufferGeometry stores geometry as raw data in an array rather
-           * than as instances of Vector and Face classes. This makes them more
-           * efficient but more difficult to manipulate. This is good for chunks,
-           * as we need to render a lot of them and won't manipulate their geometry.
-           */
 
-          //Create a buffer object of box geometry, a cube with the dimension 5
-          var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); //width, height, depth
-          //Create a mesh material object with a hex colour
-
-          //Solid green material
-          //var blockMeshMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
-
-          /* Create a mesh out of the box buffer geometry, with the mesh material
-           * If the face is covered (in directions), make it null (don't render it)
-           */
-          this.mesh = new THREE.Mesh(blockBox, [
-            (this.directions.includes("right") ? null : blockMeshMat[0]),  // right
-            (this.directions.includes("left") ? null : blockMeshMat[1]),   // left
-            (this.directions.includes("top") ? null : blockMeshMat[2]),    // top
-            (this.directions.includes("bottom") ? null : blockMeshMat[3]), // bottom
-            (this.directions.includes("front") ? null : blockMeshMat[4]),  // front
-            (this.directions.includes("back") ? null : blockMeshMat[5]),   // back
-          ]);
-          //Add the block to the scene
-          scene.add(this.mesh);
-          //Position the block in the scene
-          this.mesh.position.x = this.x;
-          this.mesh.position.y = this.y - 10;
-          this.mesh.position.z = this.z;
-
-          if(linesEnabled) {
-            //Edges of the block
-            var edges = new THREE.EdgesGeometry(blockBox);
-            //Line segments according to the edges of the block
-            this.line = new THREE.LineSegments(edges, new THREE
-              .LineBasicMaterial({color: 0x000000})
-            );
-            //Add the lines to the scene and position them according to the block
-            scene.add(this.line);
-            this.line.position.x = this.x;
-            this.line.position.y = this.y - 10;
-            this.line.position.z = this.z;
-          }
-
-        }
       }
 
       //Returns an array of co-ordinates for the normals of the chunk array
@@ -244,7 +195,7 @@
       //Size of an individual chunk
       var chunkSize = 16;
       //RenderDistance: number of chunks to render at a time
-      var renderDistance = 2;
+      var renderDistance = 20;
       //The offsetting of the block positions as per the noise function
       var xOff = 0;
       var zOff = 0;
@@ -252,6 +203,10 @@
       var inc = 0.05; //Smoothness
       var amplitude = 30 + (Math.random() * 70); //height (variation)
 
+      var blockBox = new THREE.BoxGeometry(5, 5, 5);
+      var worldSize = chunkSize * chunkSize * renderDistance * renderDistance;
+      var instancedChunk = new THREE.InstancedMesh(blockBox, blockMeshMat, worldSize);
+      var count = 0;
       //Looping over rendered chunks
       for(var i = 0; i < renderDistance; i++) {
         //Looping over rendered chunks on the other axis
@@ -277,6 +232,15 @@
               //Add a block to the array, with the noise displaced height v.
               chunk.push(new Block(x * 5, v, z * 5));
 
+              let matrix = new THREE.Matrix4().makeTranslation(
+                x * 5,
+                v,
+                z * 5
+              );
+
+              instancedChunk.setMatrixAt(count, matrix);
+              count++;
+
               /*
               console.log("New Block: \n"
                           + "chunk: " + (i+1) + " : " + (j + 1) + "\n"
@@ -290,18 +254,12 @@
       }
     }
 
+    scene.add(instancedChunk);
+
       //Spawn position
       camera.position.x = Math.round(renderDistance * chunkSize / 2 * 5);
       camera.position.z = Math.round(renderDistance * chunkSize / 2 * 5);
       camera.position.y = 70;
-
-      //Display each block in the rendered chunks
-      for(var i = 0; i < chunks.length; i++) {
-        for(var j = 0; j < chunks[i].length; j++) {
-          chunks[i][j].display();
-        }
-      }
-
 
       //Allows the player to jump if true
       var canJump = true;
@@ -440,10 +398,10 @@
                camera.position.z <= chunks[i][j].z + 2.5 &&
                camera.position.z >= chunks[i][j].z - 2.5) {
 
-              if(camera.position.y <= chunks[i][j].y + 2.5 &&
-                 camera.position.y >= chunks[i][j].y - 2.5) {
+              if(camera.position.y <= chunks[i][j].y + 10 &&
+                 camera.position.y >= chunks[i][j].y) {
 
-                camera.position.y = chunks[i][j].y + 2.5;
+                camera.position.y = chunks[i][j].y + 10;
                 ySpeed = 0;
                 canJump = true;
               }
@@ -470,21 +428,6 @@
 					[1], [x], [7],
 					[2], [5], [8],
 				*/
-
-				// remove blocks (chunks)
-
-        //Loop over chunks
-				for(var i = 0; i < chunks.length; i++) {
-          //If chunk row (i+1) is outside of render distance (DELETES 2, 5, 8)
-					if((i + 1) % renderDistance == 0) {
-            //Loop over each chunk in i and remove each block
-						for(var j = 0; j < chunks[i].length; j++) {
-							scene.remove(chunks[i][j].mesh);
-							scene.remove(chunks[i][j].line);
-						}
-					}
-
-				}
 
         //Add every other chunk to an array newChunks[]
 				var newChunks = [];
@@ -517,18 +460,29 @@
           //Add the new chunks at the start of the newChunks array
 					newChunks.splice(i * renderDistance, 0, chunk);
 				}
+        // remove blocks (chunks)
+        scene.remove(instancedChunk);
 
         //Replace chunks with newChunks
-				chunks = newChunks;
+        chunks = newChunks;
 
-        //Display every new chunk
-				for(var i = 0; i < chunks.length; i++) {
-					if(i % renderDistance == 0) {
-						for(var j = 0; j < chunks[i].length; j++) {
-							chunks[i][j].display();
-						}
-					}
-				}
+        instancedChunk = new THREE.InstancedMesh(blockBox, blockMeshMat, worldSize);
+        var count = 0;
+        for(var i = 0; i < chunks.length; i++) {
+          for(var j = 0; j < chunks[i].length; j++) {
+            let matrix = new THREE.Matrix4().makeTranslation(
+                chunks[i][j].x,
+                chunks[i][j].y,
+                chunks[i][j].z
+            );
+            instancedChunk.setMatrixAt(count, matrix);
+            count++;
+          }
+        }
+
+        scene.add(instancedChunk);
+
+
 			}
 
 
@@ -545,21 +499,6 @@
         [1], [x], [7],
         [2], [5], [8],
       */
-
-      // remove blocks (chunks)
-
-      //Loop over chunks
-      for(var i = 0; i < chunks.length; i++) {
-        //If chunk row i is outside of render distance (DELETES 0, 1, 2)
-        if( i % renderDistance == 0) {
-          //Loop over each chunk in i and remove each block
-          for(var j = 0; j < chunks[i].length; j++) {
-            scene.remove(chunks[i][j].mesh);
-            scene.remove(chunks[i][j].line);
-          }
-        }
-
-      }
 
       //Add every other chunk to an array newChunks[]
       var newChunks = [];
@@ -593,17 +532,28 @@
         newChunks.splice( (i * renderDistance) + 2, 0, chunk);
       }
 
+      // remove blocks (chunks)
+      scene.remove(instancedChunk);
+
       //Replace chunks with newChunks
       chunks = newChunks;
 
-      //Display every new chunk
+      instancedChunk = new THREE.InstancedMesh(blockBox, blockMeshMat, worldSize);
+      var count = 0;
       for(var i = 0; i < chunks.length; i++) {
-        if( (i + 1) % renderDistance == 0) {
-          for(var j = 0; j < chunks[i].length; j++) {
-            chunks[i][j].display();
-          }
+        for(var j = 0; j < chunks[i].length; j++) {
+          let matrix = new THREE.Matrix4().makeTranslation(
+              chunks[i][j].x,
+              chunks[i][j].y,
+              chunks[i][j].z
+          );
+          instancedChunk.setMatrixAt(count, matrix);
+          count++;
         }
       }
+
+      scene.add(instancedChunk);
+
     }
 
     /*
@@ -618,17 +568,6 @@
       [2], [5], [8],
     */
 
-    // remove blocks (chunks)
-
-    //Loop over chunks (0, 1, 2)
-    for(var i = 0; i < renderDistance; i++) {
-      //Loop over each chunk in i and remove each block
-      for(var j = 0; j < chunks[i].length; j++) {
-        scene.remove(chunks[i][j].mesh);
-        scene.remove(chunks[i][j].line);
-      }
-
-    }
 
     //Add every other chunk to an array newChunks[]
     var newChunks = [];
@@ -660,15 +599,29 @@
       newChunks.splice( chunks.length - (renderDistance - i), 0, chunk);
     }
 
+    // remove blocks (chunks)
+    scene.remove(instancedChunk);
+
     //Replace chunks with newChunks
     chunks = newChunks;
 
-    //Display every new chunk
-    for(var i = chunks.length - renderDistance; i < chunks.length; i++) {
+    instancedChunk = new THREE.InstancedMesh(blockBox, blockMeshMat, worldSize);
+    var count = 0;
+    for(var i = 0; i < chunks.length; i++) {
       for(var j = 0; j < chunks[i].length; j++) {
-        chunks[i][j].display();
+        let matrix = new THREE.Matrix4().makeTranslation(
+            chunks[i][j].x,
+            chunks[i][j].y,
+            chunks[i][j].z
+        );
+        instancedChunk.setMatrixAt(count, matrix);
+        count++;
       }
     }
+
+    scene.add(instancedChunk);
+
+
   }
 
   /*
@@ -682,18 +635,6 @@
     [1], [x], [7],
     [2], [5], [8],
   */
-
-  // remove blocks (chunks)
-
-  //Loop over chunks (0, 1, 2)
-  for(var i = chunks.length - renderDistance; i < chunks.length; i++) {
-    //Loop over each chunk in i and remove each block
-    for(var j = 0; j < chunks[i].length; j++) {
-      scene.remove(chunks[i][j].mesh);
-      scene.remove(chunks[i][j].line);
-    }
-
-  }
 
   //Add every other chunk to an array newChunks[]
   var newChunks = [];
@@ -725,15 +666,29 @@
     newChunks.splice( i, 0, chunk);
   }
 
+  // remove blocks (chunks)
+  scene.remove(instancedChunk);
+
   //Replace chunks with newChunks
   chunks = newChunks;
 
-  //Display every new chunk
-  for(var i = 0; i < renderDistance; i++) {
+  instancedChunk = new THREE.InstancedMesh(blockBox, blockMeshMat, worldSize);
+  var count = 0;
+  for(var i = 0; i < chunks.length; i++) {
     for(var j = 0; j < chunks[i].length; j++) {
-      chunks[i][j].display();
+      let matrix = new THREE.Matrix4().makeTranslation(
+          chunks[i][j].x,
+          chunks[i][j].y,
+          chunks[i][j].z
+      );
+      instancedChunk.setMatrixAt(count, matrix);
+      count++;
     }
   }
+
+  scene.add(instancedChunk);
+
+
 }
         forward = 1;
         back = -1;
