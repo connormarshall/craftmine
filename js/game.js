@@ -23,6 +23,15 @@
       //Add renderer to document
       document.body.appendChild(renderer.domElement);
 
+      var ambientLight = new THREE.AmbientLight( 0x89cff0, 0.5 );
+      scene.add(ambientLight);
+
+      var sunlight = new THREE.HemisphereLight(0xffeeb1, 0x080820, 1.5);
+      scene.add(sunlight);
+
+      //var directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      //scene.add(directionalLight);
+
       //FPS Counter
       var stats = new Stats();
       stats.showPanel(0);
@@ -54,12 +63,12 @@
 
       //Material for a grass block. Load once to save overhead
       var blockMeshMat = [
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-top.png")}),
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/dirt.jpg")}),
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")}),
-        new THREE.MeshBasicMaterial({map: loader.load("img/texture/grass-side.png")})
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/grass-top.png")}),
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/dirt.jpg")}),
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/grass-side.png")}),
+        new THREE.MeshPhongMaterial({map: loader.load("img/texture/grass-side.png")})
       ];
 
       //Used to find the faces of a block
@@ -385,6 +394,12 @@
 
       //Update function: Update game each frams
       function update() {
+
+        sunlight.position.set(
+          camera.position.x + 10,
+          camera.position.y + 10,
+          camera.position.z + 10,
+        );
 
         updateMovement();
 
