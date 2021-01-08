@@ -1,4 +1,6 @@
 
+      //flat(ish) seed: 0.1659680911959136
+
       //Choose a random seed on initialisation
       var seed = Math.random();
       noise.seed(seed);
@@ -204,7 +206,7 @@
       //Size of an individual chunk
       var chunkSize = 16;
       //RenderDistance: number of chunks to render at a time
-      var renderDistance = 20;
+      var renderDistance = 10;
       //The offsetting of the block positions as per the noise function
       var xOff = 0;
       var zOff = 0;
@@ -432,11 +434,14 @@
         var lowestZ = chunkEdges[2];
         var highestZ = chunkEdges[3];
 
+        var worldDim = chunkSize * renderDistance * 5;
+        var ratio = 0.4
+
         /*
          * FORWARD (DECREASING Z)
          */
 
-        if(camera.position.z <= lowestZ + 20) { //Middle of chunks
+        if(camera.position.z <= lowestZ + (worldDim * ratio)) { //Middle of chunks
 				/*
 
 					[0], [3], [6],
@@ -507,7 +512,7 @@
        * BACKWARD (INCREASING Z)
        */
 
-      if(camera.position.z >= highestZ - 20) { //Middle of chunks
+      if(camera.position.z >= highestZ - (worldDim * ratio)) { //Middle of chunks
       /*
 
         [0], [3], [6],
@@ -544,7 +549,7 @@
           }
         }
         //Add the new chunks at the end of the newChunks array (2, 5, 8)
-        newChunks.splice( (i * renderDistance) + 2, 0, chunk);
+        newChunks.splice( ((i + 1) * renderDistance) - 1, 0, chunk);
       }
 
       // remove blocks (chunks)
@@ -575,7 +580,7 @@
      * RIGHT (INCREASING X)
      */
 
-    if(camera.position.x >= highestX - 20) { //Middle of chunks
+    if(camera.position.x >= highestX - (worldDim * ratio)) { //Middle of chunks
     /*
 
       [0], [3], [6],
@@ -643,7 +648,7 @@
    * LEFT (DECREASING X)
    */
 
-  if(camera.position.x <= lowestX + 20) { //Middle of chunks
+  if(camera.position.x <= lowestX + (worldDim * ratio)) { //Middle of chunks
   /*
 
     [0], [3], [6],
@@ -722,8 +727,114 @@
         camera.updateProjectionMatrix();
       });
 
+      //Raycasting
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      var plane;
+      //Pointer center of screen
+      pointer.x = (0.5) * 2 - 1;
+      pointer.y = -1 * (0.5) * 2 + 1;
+
       //Render function: render the game after an update() each frame
       function render() {
+        //Raycaster originates from center of camera
+        raycaster.setFromCamera(pointer, camera);
+        //
+        var intersection = raycaster.intersectObject(instancedChunk);
+
+        //If intersection exists and is within 4 blocks
+        if(intersection[0] != undefined && intersection[0].distance < 20) {
+
+          if(!scene.children.includes(plane)) {
+            var planeG = new THREE.PlaneGeometry(5, 5);
+            var edges = new THREE.EdgesGeometry(planeG);
+            var planeM = new THREE.LineBasicMaterial({color: 0x333333});
+            /*
+            var planeM = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide});
+            planeM.transparent = true;
+            planeM.opacity = 0.5;
+            plane = new THREE.Mesh(planeG, planeM);
+            */
+
+            var wireframe = new THREE.LineSegments(edges, planeM);
+            plane = wireframe;
+            scene.add(plane);
+
+          } else {
+            plane.visible = true;
+            var materialIndex = intersection[0].face.materialIndex;
+            var position = intersection[0].point;
+            var x = 0, y = 0, z = 0, inc = 0.1;
+
+            switch(materialIndex) {
+              case 0: //right
+                plane.rotation.x = 0;
+                plane.rotation.y = (Math.PI / 2);
+                plane.rotation.z = 0;
+                x = position.x + inc;
+                y = Math.round(position.y / 5) * 5;
+                z = Math.round(position.z / 5) * 5;
+                break;
+
+              case 1: //left
+                plane.rotation.x = 0;
+                plane.rotation.y = (Math.PI / 2);
+                plane.rotation.z = 0;
+                x = position.x - inc;
+                y = Math.round(position.y / 5) * 5;
+                z = Math.round(position.z / 5) * 5;
+                break;
+
+              case 2: // top
+                plane.rotation.x = (Math.PI / 2);
+                plane.rotation.y = 0;
+                plane.rotation.z = 0;
+                x = Math.round(position.x / 5) * 5;
+                y = position.y + inc;
+                z = Math.round(position.z / 5) * 5;
+                break;
+
+              case 3: // bottom
+                plane.rotation.x = (Math.PI / 2);
+                plane.rotation.y = 0;
+                plane.rotation.z = 0;
+                x = Math.round(position.x / 5) * 5;
+                y = position.y - inc;
+                z = Math.round(position.z / 5) * 5;
+                break;
+
+              case 4: //front
+                plane.rotation.x = 0;
+                plane.rotation.y = 0;
+                plane.rotation.z = 0;
+                x = Math.round(position.x / 5) * 5;
+                y = Math.round(position.y / 5) * 5;
+                z = position.z + inc;
+                break;
+
+              case 5: //back
+                plane.rotation.x = 0;
+                plane.rotation.y = 0;
+                plane.rotation.z = 0;
+                x = Math.round(position.x / 5) * 5;
+                y = Math.round(position.y / 5) * 5;
+                z = position.z - inc;
+                break;
+
+            }
+
+            plane.position.x = x;
+            plane.position.y = y;
+            plane.position.z = z;
+
+          }
+        } else {
+
+            if (plane)
+              plane.visible = false;
+
+        }
+
         //Render the scene of 3D objects to the 2D camera frame
         renderer.render(scene, camera);
       }
